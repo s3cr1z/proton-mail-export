@@ -18,128 +18,166 @@
 package mail
 
 import (
-	"context"
+        "context"
 
-	"github.com/ProtonMail/export-tool/internal/apiclient"
-	"github.com/ProtonMail/go-proton-api"
-	"github.com/bradenaw/juniper/xslices"
-	"github.com/sirupsen/logrus"
+        "github.com/ProtonMail/export-tool/internal/apiclient"
+        "github.com/ProtonMail/go-proton-api"
+        "github.com/bradenaw/juniper/xslices"
+        "github.com/sirupsen/logrus"
 )
 
 type MetadataFileChecker interface {
-	HasMessage(msgID string) (bool, error)
+        HasMessage(msgID string) (bool, error)
 }
 
 type MetadataStage struct {
-	client    apiclient.Client
-	log       *logrus.Entry
-	outputCh  chan []proton.MessageMetadata
-	pageSize  int
-	splitSize int
+        client    apiclient.Client
+        log       *logrus.Entry
+        outputCh  chan []proton.MessageMetadata
+        pageSize  int
+        splitSize int
+        filter    *ExportFilter
+        labelMap  map[string]string // Maps label IDs to names
 }
 
 func NewMetadataStage(
-	client apiclient.Client,
-	entry *logrus.Entry,
-	pageSize int,
-	splitSize int,
+        client apiclient.Client,
+        entry *logrus.Entry,
+        pageSize int,
+        splitSize int,
 ) *MetadataStage {
-	return &MetadataStage{
-		client:    client,
-		log:       entry.WithField("stage", "metadata"),
-		outputCh:  make(chan []proton.MessageMetadata),
-		pageSize:  pageSize,
-		splitSize: splitSize,
-	}
+        return NewMetadataStageWithFilter(client, entry, pageSize, splitSize, NewExportFilter())
+}
+
+func NewMetadataStageWithFilter(
+        client apiclient.Client,
+        entry *logrus.Entry,
+        pageSize int,
+        splitSize int,
+        filter *ExportFilter,
+) *MetadataStage {
+        return &MetadataStage{
+                client:    client,
+                log:       entry.WithField("stage", "metadata"),
+                outputCh:  make(chan []proton.MessageMetadata),
+                pageSize:  pageSize,
+                splitSize: splitSize,
+                filter:    filter,
+                labelMap:  make(map[string]string),
+        }
 }
 
 func (m *MetadataStage) Run(
-	ctx context.Context,
-	errReporter StageErrorReporter,
-	mfc MetadataFileChecker,
-	reporter Reporter,
+        ctx context.Context,
+        errReporter StageErrorReporter,
+        mfc MetadataFileChecker,
+        reporter Reporter,
 ) {
-	m.log.Debug("Starting")
-	defer m.log.Debug("Exiting")
-	defer close(m.outputCh)
+        m.log.Debug("Starting")
+        defer m.log.Debug("Exiting")
+        defer close(m.outputCh)
 
-	client := m.client
+        client := m.client
 
-	var lastMessageID string
+        var lastMessageID string
 
-	for {
-		if ctx.Err() != nil {
-			return
-		}
+        for {
+                if ctx.Err() != nil {
+                        return
+                }
 
-		var metadata []proton.MessageMetadata
+                var metadata []proton.MessageMetadata
 
-		if lastMessageID != "" {
-			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
-				EndID: lastMessageID,
-				Desc:  true,
-			})
+                if lastMessageID != "" {
+                        meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
+                                EndID: lastMessageID,
+                                Desc:  true,
+                        })
 
-			if err != nil {
-				errReporter.ReportStageError(err)
-				return
-			}
+                        if err != nil {
+                                errReporter.ReportStageError(err)
+                                return
+                        }
 
-			// * There is only one message returned and it matches the EndID query.
-			if len(meta) != 0 && meta[0].ID == lastMessageID {
-				meta = meta[1:]
-			}
+                        // * There is only one message returned and it matches the EndID query.
+                        if len(meta) != 0 && meta[0].ID == lastMessageID {
+                                meta = meta[1:]
+                        }
 
-			metadata = meta
-		} else {
-			meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
-				Desc: true,
-			})
-			if err != nil {
-				errReporter.ReportStageError(err)
-				return
-			}
-			metadata = meta
-		}
+                        metadata = meta
+                } else {
+                        meta, err := client.GetMessageMetadataPage(ctx, 0, m.pageSize, proton.MessageFilter{
+                                Desc: true,
+                        })
+                        if err != nil {
+                                errReporter.ReportStageError(err)
+                                return
+                        }
+                        metadata = meta
+                }
 
-		// Nothing left to do
-		if len(metadata) == 0 {
-			return
-		}
+                // Nothing left to do
+                if len(metadata) == 0 {
+                        return
+                }
 
-		lastMessageID = metadata[len(metadata)-1].ID
+                lastMessageID = metadata[len(metadata)-1].ID
 
-		initialLen := len(metadata)
-		metadata = xslices.Filter(metadata, func(t proton.MessageMetadata) bool {
-			isPresent, err := mfc.HasMessage(t.ID)
-			if err != nil {
-				errReporter.ReportStageError(err)
-				return false
-			}
+                initialLen := len(metadata)
+                metadata = xslices.Filter(metadata, func(t proton.MessageMetadata) bool {
+                        isPresent, err := mfc.HasMessage(t.ID)
+                        if err != nil {
+                                errReporter.ReportStageError(err)
+                                return false
+                        }
 
-			return !isPresent
-		})
+                        return !isPresent
+                })
 
-		if len(metadata) != initialLen {
-			reporter.OnProgress(initialLen - len(metadata))
-		}
+                if len(metadata) != initialLen {
+                        reporter.OnProgress(initialLen - len(metadata))
+                }
 
-		if len(metadata) == 0 {
-			continue
-		}
+                if len(metadata) == 0 {
+                        continue
+                }
 
-		for _, chunk := range xslices.Chunk(metadata, m.splitSize) {
-			select {
-			case <-ctx.Done():
-				return
-			case m.outputCh <- chunk:
-			}
-		}
-	}
+                for _, chunk := range xslices.Chunk(metadata, m.splitSize) {
+                        select {
+                        case <-ctx.Done():
+                                return
+                        case m.outputCh <- chunk:
+                        }
+                }
+        }
 }
 
 type alwaysMissingMetadataFileChecker struct{}
 
 func (a alwaysMissingMetadataFileChecker) HasMessage(string) (bool, error) {
-	return false, nil
+        return false, nil
+}
+
+// initializeLabelMap populates the label ID to name mapping for filtering
+func (m *MetadataStage) initializeLabelMap(ctx context.Context) error {
+        labels, err := m.client.GetLabels(ctx, proton.LabelTypeSystem, proton.LabelTypeFolder, proton.LabelTypeLabel)
+        if err != nil {
+                return err
+        }
+
+        for _, label := range labels {
+                m.labelMap[label.ID] = label.Name
+        }
+
+        // Update filter to use label IDs instead of names
+        for _, labelName := range m.filter.LabelNames {
+                for labelID, name := range m.labelMap {
+                        if name == labelName {
+                                m.filter.LabelIDs = append(m.filter.LabelIDs, labelID)
+                                break
+                        }
+                }
+        }
+
+        return nil
 }
