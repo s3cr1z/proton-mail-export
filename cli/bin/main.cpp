@@ -31,6 +31,7 @@
 #include <cxxopts.hpp>
 #include <et.hpp>
 #include <etconfig.hpp>
+#include <etfilters.hpp>
 #include <etlog.hpp>
 #include <etsession.hpp>
 #include <etutil.hpp>
@@ -42,6 +43,7 @@
 #include "tasks/restore_task.hpp"
 #include "tasks/session_task.hpp"
 #include "tui_util.hpp"
+#include "filter_builder.hpp"
 
 #if defined(__APPLE__)
 #include "macos.hpp"
@@ -669,10 +671,18 @@ int main(int argc, const char** argv) {
             "encrypt", "Enable backup encryption", cxxopts::value<bool>()->default_value("false"))(
             "encryption-password", "Password for backup encryption", cxxopts::value<std::string>())(
             "incremental", "Enable incremental backup", cxxopts::value<bool>()->default_value("false"))(
+            // Advanced filtering options
             "date-start", "Start date for filtering (YYYY-MM-DD)", cxxopts::value<std::string>())(
             "date-end", "End date for filtering (YYYY-MM-DD)", cxxopts::value<std::string>())(
-            "sender", "Filter by sender email/pattern", cxxopts::value<std::vector<std::string>>())(
-            "has-attachments", "Filter emails with attachments", cxxopts::value<bool>())(
+            "sender", "Filter by sender email/pattern (can be specified multiple times)", cxxopts::value<std::vector<std::string>>())(
+            "recipient", "Filter by recipient email/pattern (can be specified multiple times)", cxxopts::value<std::vector<std::string>>())(
+            "domain", "Filter by email domain (can be specified multiple times)", cxxopts::value<std::vector<std::string>>())(
+            "folder", "Export specific folders/labels only (can be specified multiple times)", cxxopts::value<std::vector<std::string>>())(
+            "exclude-folder", "Exclude specific folders/labels from export (can be specified multiple times)", cxxopts::value<std::vector<std::string>>())(
+            "subject", "Filter by subject pattern (can be specified multiple times)", cxxopts::value<std::vector<std::string>>())(
+            "has-attachments", "Filter emails with attachments (true/false)", cxxopts::value<bool>())(
+            "min-size", "Minimum email size in bytes", cxxopts::value<uint64_t>())(
+            "max-size", "Maximum email size in bytes", cxxopts::value<uint64_t>())(
             "format", "Export format (eml, pdf)", cxxopts::value<std::string>()->default_value("eml"))(
             "progress-style", "Progress display style (simple, enhanced)", cxxopts::value<std::string>()->default_value("simple"))(
             "h,help", "Show help");
