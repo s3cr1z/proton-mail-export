@@ -1,7 +1,15 @@
 package main
 
-import "github.com/ProtonMail/export-tool/internal/app"
+import (
+        "fmt"
+        "os"
+
+        "github.com/ProtonMail/export-tool/internal/tui"
+)
 
 func main() {
-	app.Run()
+        if err := tui.Run(); err != nil {
+                fmt.Printf("Error: %v\n", err)
+                os.Exit(1)
+        }
 }
