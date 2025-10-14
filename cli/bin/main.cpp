@@ -47,6 +47,8 @@
 #include "macos.hpp"
 #endif
 
+// Future: Add TUI integration when implemented
+
 constexpr int kNumInputRetries = 3;
 constexpr const char* kReportTag = "cli";
 static std::atomic_bool gShouldQuit = std::atomic_bool(false);
@@ -662,7 +664,17 @@ int main(int argc, const char** argv) {
             cxxopts::value<std::string>())("t,totp", "User's TOTP 2FA code (can also be set with env var ET_TOTP_CODE)",
                                            cxxopts::value<std::string>())(
             "u,user", "User's account/email (can also be set with env var ET_USER_EMAIL", cxxopts::value<std::string>())(
-            "k, telemetry", "Disable anonymous telemetry statistics (can also be set with env var ET_TELEMETRY_OFF)", cxxopts::value<bool>())(
+            "k,telemetry", "Disable anonymous telemetry statistics (can also be set with env var ET_TELEMETRY_OFF)", cxxopts::value<bool>())(
+            // Enhanced options for new features
+            "encrypt", "Enable backup encryption", cxxopts::value<bool>()->default_value("false"))(
+            "encryption-password", "Password for backup encryption", cxxopts::value<std::string>())(
+            "incremental", "Enable incremental backup", cxxopts::value<bool>()->default_value("false"))(
+            "date-start", "Start date for filtering (YYYY-MM-DD)", cxxopts::value<std::string>())(
+            "date-end", "End date for filtering (YYYY-MM-DD)", cxxopts::value<std::string>())(
+            "sender", "Filter by sender email/pattern", cxxopts::value<std::vector<std::string>>())(
+            "has-attachments", "Filter emails with attachments", cxxopts::value<bool>())(
+            "format", "Export format (eml, pdf)", cxxopts::value<std::string>()->default_value("eml"))(
+            "progress-style", "Progress display style (simple, enhanced)", cxxopts::value<std::string>()->default_value("simple"))(
             "h,help", "Show help");
 
         auto argParseResult = options.parse(argc, argv);

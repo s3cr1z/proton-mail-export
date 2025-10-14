@@ -1,0 +1,110 @@
+{
+  "$schema": "https://raw.githubusercontent.com/spdx/spdx-spec/v2.2.1/schemas/spdx-schema.json",
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "documentNamespace": "https://spdx.org/spdxdocs/cxxopts-x64-linux-3.2.1-a5f44c74-87d2-4ed2-83b6-97c072fb8d43",
+  "name": "cxxopts:x64-linux@3.2.1 6891005dfaca80cfa8a620ce324ae0ada801c91b5c04eadcf9a0d6577b12f2cc",
+  "creationInfo": {
+    "creators": [
+      "Tool: vcpkg-2024-06-10-02590c430e4ed9215d27870138c2e579cc338772"
+    ],
+    "created": "2025-09-14T15:41:09Z"
+  },
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "GENERATES",
+      "relatedSpdxElement": "SPDXRef-binary"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-0"
+    },
+    {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-1"
+    },
+    {
+      "spdxElementId": "SPDXRef-binary",
+      "relationshipType": "GENERATED_FROM",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-0",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-1",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
+    }
+  ],
+  "packages": [
+    {
+      "name": "cxxopts",
+      "SPDXID": "SPDXRef-port",
+      "versionInfo": "3.2.1",
+      "downloadLocation": "NOASSERTION",
+      "homepage": "https://github.com/jarro2783/cxxopts",
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "description": "This is a lightweight C++ option parser library, supporting the standard GNU style syntax for options",
+      "comment": "This is the port (recipe) consumed by vcpkg."
+    },
+    {
+      "name": "cxxopts:x64-linux",
+      "SPDXID": "SPDXRef-binary",
+      "versionInfo": "6891005dfaca80cfa8a620ce324ae0ada801c91b5c04eadcf9a0d6577b12f2cc",
+      "downloadLocation": "NONE",
+      "licenseConcluded": "MIT",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "comment": "This is a binary package built by vcpkg."
+    },
+    {
+      "SPDXID": "SPDXRef-resource-1",
+      "name": "jarro2783/cxxopts",
+      "downloadLocation": "git+https://github.com/jarro2783/cxxopts@v3.2.1",
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "checksums": [
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "7841fb3e6c3c2a057917c962e29fc0090e6ed06f5515aaa5e2a868fef59071a9a99b74d81c32cf613ecf10a68a4d96d6ad07805f48c7c3951ded096a2317dc3d"
+        }
+      ]
+    }
+  ],
+  "files": [
+    {
+      "fileName": ".//root/proton-mail-export/vcpkg/ports/cxxopts/vcpkg.json",
+      "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "59434b49818a7563357cf76dbfd6a00b4364b3fc143d4dee448e3e80493b1919"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": ".//root/proton-mail-export/vcpkg/ports/cxxopts/portfile.cmake",
+      "SPDXID": "SPDXRef-file-1",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "da039cb18f33f8b8a74f4c9eaaffda6b7f08174eb4de58411db5fe60e061684e"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    }
+  ]
+}

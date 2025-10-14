@@ -1,0 +1,2 @@
+/usr/bin/ar qc libetcpp.a CMakeFiles/etcpp.dir/lib/etsession.cpp.o CMakeFiles/etcpp.dir/lib/etbackup.cpp.o CMakeFiles/etcpp.dir/lib/etrestore.cpp.o CMakeFiles/etcpp.dir/lib/etlog.cpp.o CMakeFiles/etcpp.dir/lib/etutil.cpp.o CMakeFiles/etcpp.dir/lib/et.cpp.o CMakeFiles/etcpp.dir/lib/etutil_unix.cpp.o CMakeFiles/etcpp.dir/lib/etutil_linux.cpp.o
+/usr/bin/ranlib libetcpp.a
