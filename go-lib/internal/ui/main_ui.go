@@ -1,209 +1,302 @@
 package ui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"fmt"
-	"strings"
+        "context"
+        "fmt"
+        "os"
+        "path/filepath"
+        "strings"
+        "time"
+
+        tea "github.com/charmbracelet/bubbletea"
+        "github.com/charmbracelet/huh"
+        "github.com/charmbracelet/lipgloss"
+        "github.com/ProtonMail/export-tool/internal/session"
 )
 
-// Note: This file may require workspace configuration. Run 'go mod tidy' or add a go.work file to resolve import errors.
-
 // Proton color constants
-const protonPink = "#6d4dfb"   // Pink OCD for accents
-const protonPurple = "#4226a2" // Galactic Purple for primary text and buttons
-const protonLilac = "#bca4fc"  // Winterspring Lilac for secondary elements
+const (
+        protonPink   = "#6d4dfb"   // Pink OCD for accents
+        protonPurple = "#4226a2"   // Galactic Purple for primary text and buttons
+        protonLilac  = "#bca4fc"   // Winterspring Lilac for secondary elements
+        protonGray   = "#706d6b"   // Gray for secondary text
+        protonWhite  = "#ffffff"   // White for primary text
+        protonDark   = "#1a1a1a"   // Dark background
+)
 
-// Base dark mode style
-var darkModeBase = lipgloss.NewStyle().Background(lipgloss.Color("#1a1a1a")).Foreground(lipgloss.Color("#ffffff")) // Dark background with white text
+// Styles
+var (
+        baseStyle = lipgloss.NewStyle().
+                        Background(lipgloss.Color(protonDark)).
+                        Foreground(lipgloss.Color(protonWhite))
 
-// TUI State Enum
+        titleStyle = lipgloss.NewStyle().
+                        Foreground(lipgloss.Color(protonPink)).
+                        Bold(true).
+                        Margin(1, 0)
+
+        subtitleStyle = lipgloss.NewStyle().
+                        Foreground(lipgloss.Color(protonLilac)).
+                        Margin(0, 0, 1, 0)
+
+        errorStyle = lipgloss.NewStyle().
+                        Foreground(lipgloss.Color("#ff6b6b")).
+                        Bold(true)
+
+        successStyle = lipgloss.NewStyle().
+                        Foreground(lipgloss.Color("#51cf66")).
+                        Bold(true)
+
+        focusedStyle = lipgloss.NewStyle().
+                        Foreground(lipgloss.Color(protonPink)).
+                        Bold(true)
+
+        blurredStyle = lipgloss.NewStyle().
+                        Foreground(lipgloss.Color(protonGray))
+)
+
+// Screen types
 type ScreenType int
 
 const (
-	LoginScreen ScreenType = iota
-	OperationScreen
-	ProgressScreen
-	FilterScreen
-	PluginScreen
+        WelcomeScreen ScreenType = iota
+        LoginScreen
+        OperationScreen
+        PathScreen
+        ProgressScreen
+        CompletionScreen
+        ErrorScreen
 )
 
-type Model struct {
-	currentScreen ScreenType
-	screens       map[ScreenType]tea.Model
-	metrics       ProgressMetrics
-	error         string
-	cancelled     bool
+// Messages for communication between screens
+type ScreenChangeMsg struct {
+        Screen ScreenType
+        Data   interface{}
 }
 
-func InitialModel() Model {
-	m := Model{
-		currentScreen: LoginScreen,
-		screens:       make(map[ScreenType]tea.Model),
-	}
-	
-	// Initialize sub-models
-	m.screens[LoginScreen] = NewLoginModel()
-	m.screens[OperationScreen] = NewOperationModel()
-	m.screens[ProgressScreen] = NewProgressModel()
-	m.screens[FilterScreen] = NewFilterModel()
-	m.screens[PluginScreen] = NewPluginModel()
-	
-	return m
+type LoginCompleteMsg struct {
+        Session *session.Session
+}
+
+type OperationSelectedMsg struct {
+        Operation string
+}
+
+type PathSelectedMsg struct {
+        Path string
+}
+
+type ProgressUpdateMsg struct {
+        Progress float64
+        Status   string
+}
+
+type ErrorMsg struct {
+        Error error
+}
+
+type CompletionMsg struct {
+        Success bool
+        Message string
+}
+
+// Main TUI Model
+type Model struct {
+        currentScreen ScreenType
+        screens       map[ScreenType]tea.Model
+        session       *session.Session
+        operation     string
+        path          string
+        width         int
+        height        int
+        error         error
+        cancelled     bool
+}
+
+func NewModel() Model {
+        m := Model{
+                currentScreen: WelcomeScreen,
+                screens:       make(map[ScreenType]tea.Model),
+        }
+
+        // Initialize all screen models
+        m.screens[WelcomeScreen] = NewWelcomeModel()
+        m.screens[LoginScreen] = NewLoginModel()
+        m.screens[OperationScreen] = NewOperationModel()
+        m.screens[PathScreen] = NewPathModel()
+        m.screens[ProgressScreen] = NewProgressScreenModel()
+        m.screens[CompletionScreen] = NewCompletionModel()
+        m.screens[ErrorScreen] = NewErrorModel()
+
+        return m
 }
 
 func (m Model) Init() tea.Cmd {
-	// Delegate init to the current screen model
-	return m.screens[m.currentScreen].Init()
+        return m.screens[m.currentScreen].Init()
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-	var cmdList []tea.Cmd
-	
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			m.cancelled = true
-			return m, tea.Quit
-		case "tab": // Example: Switch screens or navigate
-			// Handle navigation logic here, e.g., cycle through screens
-			m.currentScreen = (m.currentScreen + 1) % 5 // Cycle through screens for demo
-			return m, nil
-		}
-	case tea.WindowSizeMsg:
-		// Propagate size change to all screens if needed
-		for key, screen := range m.screens {
-			var c tea.Cmd
-			m.screens[key], c = screen.Update(msg)
-			cmdList = append(cmdList, c)
-		}
-		return m, tea.Batch(cmdList...)
-	}
-	
-	// Delegate update to the current screen
-	var newModel tea.Model
-	newModel, cmd = m.screens[m.currentScreen].Update(msg)
-	m.screens[m.currentScreen] = newModel
-	
-	return m, cmd
+        var cmd tea.Cmd
+        var cmds []tea.Cmd
+
+        switch msg := msg.(type) {
+        case tea.KeyMsg:
+                switch msg.String() {
+                case "ctrl+c":
+                        m.cancelled = true
+                        return m, tea.Quit
+                }
+
+        case tea.WindowSizeMsg:
+                m.width = msg.Width
+                m.height = msg.Height
+                // Propagate size to all screens
+                for screenType, screen := range m.screens {
+                        var c tea.Cmd
+                        m.screens[screenType], c = screen.Update(msg)
+                        if c != nil {
+                                cmds = append(cmds, c)
+                        }
+                }
+
+        case ScreenChangeMsg:
+                m.currentScreen = msg.Screen
+                if msg.Data != nil {
+                        // Pass data to the new screen
+                        var c tea.Cmd
+                        m.screens[m.currentScreen], c = m.screens[m.currentScreen].Update(msg)
+                        if c != nil {
+                                cmds = append(cmds, c)
+                        }
+                }
+                return m, tea.Batch(cmds...)
+
+        case LoginCompleteMsg:
+                m.session = msg.Session
+                m.currentScreen = OperationScreen
+                return m, nil
+
+        case OperationSelectedMsg:
+                m.operation = msg.Operation
+                m.currentScreen = PathScreen
+                // Pass operation to path screen
+                var c tea.Cmd
+                m.screens[PathScreen], c = m.screens[PathScreen].Update(msg)
+                if c != nil {
+                        cmds = append(cmds, c)
+                }
+                return m, tea.Batch(cmds...)
+
+        case PathSelectedMsg:
+                m.path = msg.Path
+                m.currentScreen = ProgressScreen
+                // Start the operation
+                var c tea.Cmd
+                m.screens[ProgressScreen], c = m.screens[ProgressScreen].Update(msg)
+                if c != nil {
+                        cmds = append(cmds, c)
+                }
+                return m, tea.Batch(cmds...)
+
+        case ErrorMsg:
+                m.error = msg.Error
+                m.currentScreen = ErrorScreen
+                var c tea.Cmd
+                m.screens[ErrorScreen], c = m.screens[ErrorScreen].Update(msg)
+                if c != nil {
+                        cmds = append(cmds, c)
+                }
+                return m, tea.Batch(cmds...)
+
+        case CompletionMsg:
+                m.currentScreen = CompletionScreen
+                var c tea.Cmd
+                m.screens[CompletionScreen], c = m.screens[CompletionScreen].Update(msg)
+                if c != nil {
+                        cmds = append(cmds, c)
+                }
+                return m, tea.Batch(cmds...)
+        }
+
+        // Update current screen
+        var newModel tea.Model
+        newModel, cmd = m.screens[m.currentScreen].Update(msg)
+        m.screens[m.currentScreen] = newModel
+        if cmd != nil {
+                cmds = append(cmds, cmd)
+        }
+
+        return m, tea.Batch(cmds...)
 }
 
 func (m Model) View() string {
-	// Render the current screen with dark mode styling
-	view := m.screens[m.currentScreen].View()
-	return darkModeBase.Render(view)
-}
-
-// Enhanced placeholder models with basic implementations and Proton branding
-
-type LoginModel struct {
-    username string
-    password string
-    focused  bool // For focusing on input fields
-}
-
-func (m LoginModel) Init() tea.Cmd { return nil }
-func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    switch msg := msg.(type) {
-    case tea.KeyMsg:
-        switch msg.String() {
-        case "tab":
-            m.focused = !m.focused // Toggle focus between fields
-            return m, nil
-        case "enter":
-            if m.focused {
-                // Simulate password entry or login action
-                return m, nil
-            } else {
-                // Simulate username entry
-                return m, nil
-            }
+        if m.width == 0 || m.height == 0 {
+                return "Loading..."
         }
-    }
-    return m, nil
-}
-func (m LoginModel) View() string {
-    doc := strings.Builder{}
-    if m.focused {
-        doc.WriteString(darkModeBase.Copy().Foreground(lipgloss.Color(protonPink)).Render("Focused on Password"))
-    } else {
-        doc.WriteString(darkModeBase.Copy().Foreground(lipgloss.Color(protonPurple)).Render("Focused on Username"))
-    }
-    return darkModeBase.Render(fmt.Sprintf("Login Screen\nUsername: %s\nPassword: ********", m.username))
+
+        content := m.screens[m.currentScreen].View()
+        
+        // Add header with Proton branding
+        header := titleStyle.Render("Proton Mail Export Tool") + "\n" +
+                subtitleStyle.Render("Secure email backup and restore")
+
+        // Combine header and content
+        view := lipgloss.JoinVertical(lipgloss.Left, header, content)
+
+        // Apply base styling and center
+        return baseStyle.
+                Width(m.width).
+                Height(m.height).
+                Align(lipgloss.Center, lipgloss.Center).
+                Render(view)
 }
 
-type OperationModel struct {
-    selected int // 0 for backup, 1 for restore, etc.
+func (m Model) IsCancelled() bool {
+        return m.cancelled
 }
 
-func (m OperationModel) Init() tea.Cmd { return nil }
-func (m OperationModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-    switch msg := msg.(type) {
-    case tea.KeyMsg:
-        switch msg.String() {
-        case "up":
-            if m.selected > 0 {
-                m.selected--
-            }
-            return m, nil
-        case "down":
-            m.selected++ // Assume bounds checking
-            return m, nil
-        case "enter":
-            // Handle selection (e.g., switch to progress screen)
-            return m, nil
+// Welcome Screen
+type WelcomeModel struct {
+        ready bool
+}
+
+func NewWelcomeModel() WelcomeModel {
+        return WelcomeModel{}
+}
+
+func (m WelcomeModel) Init() tea.Cmd {
+        return tea.Tick(time.Second*2, func(t time.Time) tea.Msg {
+                return ScreenChangeMsg{Screen: LoginScreen}
+        })
+}
+
+func (m WelcomeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+        switch msg := msg.(type) {
+        case tea.KeyMsg:
+                if msg.String() == "enter" || msg.String() == " " {
+                        return m, func() tea.Msg {
+                                return ScreenChangeMsg{Screen: LoginScreen}
+                        }
+                }
         }
-    }
-    return m, nil
-}
-func (m OperationModel) View() string {
-    operations := []string{"Backup", "Restore"}
-    var b strings.Builder
-    for i, op := range operations {
-        if i == m.selected {
-            b.WriteString(darkModeBase.Copy().Foreground(lipgloss.Color(protonPink)).Render(fmt.Sprintf("-> %s", op)) + "\n")
-        } else {
-            b.WriteString(darkModeBase.Copy().Foreground(lipgloss.Color(protonPurple)).Render(fmt.Sprintf("   %s", op)) + "\n")
-        }
-    }
-    return darkModeBase.Render(b.String())
+        return m, nil
 }
 
-type ProgressModel struct {
-    metrics ProgressMetrics
-}
-func (m ProgressModel) Init() tea.Cmd { return nil }
-func (m ProgressModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
-func (m ProgressModel) View() string {
-    // Use existing progress rendering with Proton colors
-    return darkModeBase.Copy().Foreground(lipgloss.Color(protonLilac)).Render(fmt.Sprintf("Progress: %.1f%%", m.metrics.GetProgressPercent()))
-}
+func (m WelcomeModel) View() string {
+        welcome := `
+Welcome to Proton Mail Export Tool
 
-type FilterModel struct {
-    filters map[string]string // Key-value for filters, e.g., "dateStart": "2023-01-01"
-}
+This tool allows you to:
+• Backup your Proton Mail data
+• Restore from previous backups
+• Export in multiple formats
 
-func (m FilterModel) Init() tea.Cmd { return nil }
-func (m FilterModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
-func (m FilterModel) View() string {
-    return darkModeBase.Copy().Foreground(lipgloss.Color(protonPurple)).Render("Filter Configuration Screen\nAdd filters here...")
+Press ENTER to continue or wait 2 seconds...
+`
+        return lipgloss.NewStyle().
+                Margin(2, 0).
+                Padding(2).
+                Border(lipgloss.RoundedBorder()).
+                BorderForeground(lipgloss.Color(protonPink)).
+                Render(welcome)
 }
-
-type PluginModel struct {
-    plugins []string // List of available plugins
-}
-
-func (m PluginModel) Init() tea.Cmd { return nil }
-func (m PluginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
-func (m PluginModel) View() string {
-    return darkModeBase.Copy().Foreground(lipgloss.Color(protonPink)).Render("Plugin Management Screen\nSelect exporter...")
-}
-
-// Factory functions
-func NewLoginModel() tea.Model { return LoginModel{} }
-func NewOperationModel() tea.Model { return OperationModel{} }
-func NewProgressModel() tea.Model { return ProgressModel{} }
-func NewFilterModel() tea.Model { return FilterModel{} }
-func NewPluginModel() tea.Model { return PluginModel{} }

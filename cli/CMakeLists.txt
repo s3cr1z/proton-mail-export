@@ -1,18 +1,19 @@
 #
-# CLI Executable
+# CLI Executable (Deprecated)
 #
 
-add_executable(proton-mail-export-cli)
+add_executable(proton-mail-export-cli-deprecated)
 
 find_package(cxxopts CONFIG REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 
-target_link_libraries(proton-mail-export-cli PRIVATE etcpp cxxopts::cxxopts)
+target_link_libraries(proton-mail-export-cli-deprecated PRIVATE etcpp cxxopts::cxxopts)
 
-target_include_directories(proton-mail-export-cli PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/bin")
+target_include_directories(proton-mail-export-cli-deprecated PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
-target_sources(proton-mail-export-cli PRIVATE
+target_sources(proton-mail-export-cli-deprecated PRIVATE
         bin/main.cpp
+        bin/deprecation_notice.cpp
         bin/operation.h
         bin/operation.cpp
         bin/tui_util.cpp
@@ -29,22 +30,22 @@ target_sources(proton-mail-export-cli PRIVATE
 )
 
 if (APPLE)
-    target_sources(proton-mail-export-cli PRIVATE
+    target_sources(proton-mail-export-cli-deprecated PRIVATE
         bin/macos.hpp
         bin/macos.mm
     )
 
-    target_link_libraries(proton-mail-export-cli PRIVATE "-framework Foundation")
+    target_link_libraries(proton-mail-export-cli-deprecated PRIVATE "-framework Foundation")
 endif()
 
 
-apply_cpp_flags(proton-mail-export-cli)
+apply_cpp_flags(proton-mail-export-cli-deprecated)
 
-copy_shared_libraries(proton-mail-export-cli etcore)
+copy_shared_libraries(proton-mail-export-cli-deprecated etcore)
 
 if (WIN32)
     # For Win32 RC file
-    set(ET_CLI_FULL_NAME "Proton Mail Export CLI")
+    set(ET_CLI_FULL_NAME "Proton Mail Export CLI (Deprecated)")
     set(ET_CLI_NAME "Proton Mail Export")
 
     set(CLI_RC_FILE "${CMAKE_CURRENT_BINARY_DIR}/resources.rc")
@@ -55,11 +56,11 @@ if (WIN32)
         @ONLY
     )
 
-    target_sources(proton-mail-export-cli PRIVATE ${CLI_RC_FILE})
+    target_sources(proton-mail-export-cli-deprecated PRIVATE ${CLI_RC_FILE})
 
 endif()
 
-install(TARGETS proton-mail-export-cli)
+install(TARGETS proton-mail-export-cli-deprecated)
 
 function(gen_meta_file input output)
     configure_file(
