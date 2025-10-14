@@ -43,6 +43,10 @@
 #include "tasks/session_task.hpp"
 #include "tui_util.hpp"
 
+// Deprecation notice
+void printDeprecationNotice();
+bool shouldShowDeprecationNotice();
+
 #if defined(__APPLE__)
 #include "macos.hpp"
 #endif
@@ -617,6 +621,11 @@ int performRestore(etcpp::Session& session, cxxopts::ParseResult const& argParse
 }
 
 int main(int argc, const char** argv) {
+    // Show deprecation notice
+    if (shouldShowDeprecationNotice()) {
+        printDeprecationNotice();
+    }
+
 #if defined(_WIN32)
     // Ensure Win32 Console correctly processes utf8 characters.
     setlocale(LC_ALL, "en_US.UTF-8");
