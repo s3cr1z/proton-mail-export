@@ -1,0 +1,42 @@
+Package: vcpkg-cmake-config
+Version: 2024-05-23
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 3e221f72d2ef88a687c7eea461524bd7cf6d6c6d797e19dfe9685c738d750b5a
+Status: install ok installed
+
+Package: vcpkg-cmake
+Version: 2024-04-23
+Architecture: x64-linux
+Multi-Arch: same
+Abi: bdd5fd960f164e7e22206efd23e8e82eefcea886a5c38c7d291a2570c01200b2
+Status: install ok installed
+
+Package: catch2
+Version: 3.6.0
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: b6541e34bf8d0599d28e4b2aa28b6527119b27fd8fd490e908ae0ff15570c6b7
+Description: A modern, C++-native, test framework for unit-tests, TDD and BDD.
+Status: install ok installed
+
+Package: cxxopts
+Version: 3.2.1
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: 6891005dfaca80cfa8a620ce324ae0ada801c91b5c04eadcf9a0d6577b12f2cc
+Description: This is a lightweight C++ option parser library, supporting the standard GNU style syntax for options
+Status: install ok installed
+
+Package: fmt
+Version: 10.2.1
+Port-Version: 2
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-linux
+Multi-Arch: same
+Abi: d82d9a089412a0a0174337d668421fbe1d0f97cd8a13af43c90e91cff50b937e
+Description: {fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams.
+Status: install ok installed
+

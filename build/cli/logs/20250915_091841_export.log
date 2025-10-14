@@ -1,0 +1,2 @@
+time="2025-09-15 09:18:41.056" level="info" msg="Starting App" appName="Proton Export" build="2025-09-14T15:41:58Z" revision="a963be0c35" runtime="linux" version="1.0.5"
+time="2025-09-15 09:18:41.059" level="error" msg="Encountered unexpected error: Option 'progress-style' does not exist" tag="etcpp"

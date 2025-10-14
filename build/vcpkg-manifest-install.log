@@ -1,0 +1,33 @@
+Detecting compiler hash for triplet x64-linux...
+Compiler found: /usr/bin/c++
+All requested packages are currently installed.
+Total install time: 5.34 us
+catch2 provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(Catch2 CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE Catch2::Catch2 Catch2::Catch2WithMain)
+
+catch2 provides pkg-config modules:
+
+  # A modern, C++-native test framework for C++14 and above (links in default main)
+  catch2-with-main
+
+  # A modern, C++-native, test framework for C++14 and above
+  catch2
+
+cxxopts provides CMake targets:
+
+  # this is heuristically generated, and may not be correct
+  find_package(cxxopts CONFIG REQUIRED)
+  target_link_libraries(main PRIVATE cxxopts::cxxopts)
+
+The package fmt provides CMake targets:
+
+    find_package(fmt CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE fmt::fmt)
+
+    # Or use the header-only version
+    find_package(fmt CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE fmt::fmt-header-only)
+
