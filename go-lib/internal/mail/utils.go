@@ -18,61 +18,66 @@
 package mail
 
 import (
-	"strconv"
-	"strings"
+        "strconv"
+        "strings"
 
-	"github.com/ProtonMail/go-proton-api"
+        "github.com/ProtonMail/go-proton-api"
 )
 
 const emlExtension = ".eml"
+const pdfExtension = ".pdf"
 const jsonMetadataExtension = ".metadata.json"
 
 func nonSystemLabel(label proton.Label) bool {
-	return label.Type != proton.LabelTypeSystem
+        return label.Type != proton.LabelTypeSystem
 }
 
 func chunkMemLimit[T any](batch []T, maxMemory uint64, stageMultiplier uint64, getSize func(T) uint64) [][]T {
-	var expectedMemUsage uint64
-	var chunks [][]T
-	var lastIndex int
-	var index int
+        var expectedMemUsage uint64
+        var chunks [][]T
+        var lastIndex int
+        var index int
 
-	for _, v := range batch {
-		dataSize := getSize(v)
+        for _, v := range batch {
+                dataSize := getSize(v)
 
-		// 2x increase for attachment due to extra memory needed for decrypting and writing
-		// in memory buffer.
-		dataSize *= stageMultiplier
+                // 2x increase for attachment due to extra memory needed for decrypting and writing
+                // in memory buffer.
+                dataSize *= stageMultiplier
 
-		nextMemSize := expectedMemUsage + dataSize
-		if nextMemSize >= maxMemory {
-			chunks = append(chunks, batch[lastIndex:index])
-			lastIndex = index
-			expectedMemUsage = dataSize
-		} else {
-			expectedMemUsage = nextMemSize
-		}
+                nextMemSize := expectedMemUsage + dataSize
+                if nextMemSize >= maxMemory {
+                        chunks = append(chunks, batch[lastIndex:index])
+                        lastIndex = index
+                        expectedMemUsage = dataSize
+                } else {
+                        expectedMemUsage = nextMemSize
+                }
 
-		index++
-	}
+                index++
+        }
 
-	if lastIndex < len(batch) {
-		chunks = append(chunks, batch[lastIndex:])
-	}
+        if lastIndex < len(batch) {
+                chunks = append(chunks, batch[lastIndex:])
+        }
 
-	return chunks
+        return chunks
 }
 
 func emlToMetadataFilename(emlPath string) string {
-	result, _ := strings.CutSuffix(emlPath, emlExtension)
-	return result + jsonMetadataExtension
+        result, _ := strings.CutSuffix(emlPath, emlExtension)
+        return result + jsonMetadataExtension
+}
+
+func getPDFFileName(id string) string {
+        return id + pdfExtension
 }
 
 // isSystemLabel returns true if the label is a built-in label (Inbox, All Mail, etc...).
 func isSystemLabel(labelID string) bool {
-	// At the moment system folder are reported as regular folders by backend unless client is Bridge or Web.
-	// A new version of the route will correct the issue (IMEX-36). For the time being, we consider a label to be
-	// system if its ID is an integer. Others labels have a base64 encoded ID.
-	_, err := strconv.Atoi(labelID)
-	return err == nil
+        // At the moment system folder are reported as regular folders by backend unless client is Bridge or Web.
+        // A new version of the route will correct the issue (IMEX-36). For the time being, we consider a label to be
+        // system if its ID is an integer. Others labels have a base64 encoded ID.
+        _, err := strconv.Atoi(labelID)
+        return err == nil
 }
