@@ -158,6 +158,15 @@ Backup Session::newBackup(const char* exportPath) const {
     return Backup(*this, exportPtr);
 }
 
+Backup Session::newBackup(const char* exportPath, const FilterCriteria& filters) const {
+    // For now, create a backup without filters - Go backend integration will be added later
+    // TODO: Serialize filters and pass to Go backend
+    etBackup* exportPtr = nullptr;
+    wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionNewBackup(ptr, exportPath, &exportPtr); });
+
+    return Backup(*this, exportPtr);
+}
+
 Restore Session::newRestore(const char* backupPath) const {
     etRestore* restorePtr = nullptr;
     wrapCCall([&](etSession* ptr) -> etSessionStatus { return etSessionNewRestore(ptr, backupPath, &restorePtr); });

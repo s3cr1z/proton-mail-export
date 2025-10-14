@@ -23,6 +23,7 @@
 #include "etbackup.hpp"
 #include "etexception.hpp"
 #include "etrestore.hpp"
+#include "etfilters.hpp"
 
 extern "C" {
 struct etSession;
@@ -73,6 +74,7 @@ public:
     [[nodiscard]] LoginState markHVSolved();
 
     [[nodiscard]] Backup newBackup(const char* exportPath) const;
+    [[nodiscard]] Backup newBackup(const char* exportPath, const FilterCriteria& filters) const;
     [[nodiscard]] Restore newRestore(const char* backupPath) const;
 
     void setUsingDefaultExportPath(const bool usingDefaultExportPath);

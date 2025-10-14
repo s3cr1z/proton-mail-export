@@ -34,6 +34,7 @@
 #include <etlog.hpp>
 #include <etsession.hpp>
 #include <etutil.hpp>
+#include <etfilters.hpp>
 
 #include "operation.h"
 #include "task_runner.hpp"
@@ -512,6 +513,63 @@ std::optional<int> performLogin(etcpp::Session& session, cxxopts::ParseResult& a
     return std::nullopt;
 }
 
+
+std::optional<etcpp::FilterCriteria> buildFilterCriteria(const cxxopts::ParseResult& argParseResult) {
+    etcpp::FilterBuilder builder;
+    bool hasFilters = false;
+
+    // Date range filtering
+    if (argParseResult.count("date-start") || argParseResult.count("date-end")) {
+        std::string startDate = argParseResult.count("date-start") ? argParseResult["date-start"].as<std::string>() : "";
+        std::string endDate = argParseResult.count("date-end") ? argParseResult["date-end"].as<std::string>() : "";
+        
+        try {
+            builder.dateRange(startDate, endDate);
+            hasFilters = true;
+            std::cout << "Applied date filter: ";
+            if (!startDate.empty()) std::cout << "from " << startDate << " ";
+            if (!endDate.empty()) std::cout << "to " << endDate;
+            std::cout << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Invalid date format: " << e.what() << std::endl;
+            return std::nullopt;
+        }
+    }
+
+    // Sender filtering
+    if (argParseResult.count("sender")) {
+        auto senders = argParseResult["sender"].as<std::vector<std::string>>();
+        for (const auto& sender : senders) {
+            builder.sender(sender);
+            hasFilters = true;
+        }
+        std::cout << "Applied sender filter for " << senders.size() << " pattern(s)" << std::endl;
+    }
+
+    // Attachment filtering
+    if (argParseResult.count("has-attachments")) {
+        bool hasAttachments = argParseResult["has-attachments"].as<bool>();
+        builder.hasAttachments(hasAttachments);
+        hasFilters = true;
+        std::cout << "Applied attachment filter: " << (hasAttachments ? "with attachments" : "without attachments") << std::endl;
+    }
+
+    // Folder filtering (if we add this option)
+    if (argParseResult.count("folder")) {
+        auto folders = argParseResult["folder"].as<std::vector<std::string>>();
+        for (const auto& folder : folders) {
+            builder.folder(folder);
+            hasFilters = true;
+        }
+        std::cout << "Applied folder filter for " << folders.size() << " folder(s)" << std::endl;
+    }
+
+    if (hasFilters) {
+        return builder.build();
+    }
+    
+    return std::nullopt;
+}
 
 int performBackup(etcpp::Session& session, cxxopts::ParseResult const& argParseResult, CLIAppState const& appState) {
     bool pathCameFromArgs = false;

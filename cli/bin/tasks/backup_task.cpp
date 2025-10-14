@@ -20,7 +20,10 @@
 #include <iostream>
 
 BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath) :
-    mBackup(session.newBackup(backupPath.u8string().c_str())) {}
+    mBackup(session.newBackup(backupPath.u8string().c_str())), mFilters(std::nullopt) {}
+
+BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const etcpp::FilterCriteria& filters) :
+    mBackup(session.newBackup(backupPath.u8string().c_str(), filters)), mFilters(filters) {}
 
 void BackupTask::onProgress(float progress) {
     updateProgress(progress);
