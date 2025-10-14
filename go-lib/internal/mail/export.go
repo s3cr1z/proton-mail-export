@@ -18,23 +18,23 @@
 package mail
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"math"
-	"os"
-	"path/filepath"
-	"sync"
-	"time"
+        "context"
+        "errors"
+        "fmt"
+        "math"
+        "os"
+        "path/filepath"
+        "sync"
+        "time"
 
-	"github.com/ProtonMail/export-tool/internal/apiclient"
-	"github.com/ProtonMail/export-tool/internal/session"
-	"github.com/ProtonMail/export-tool/internal/utils"
-	"github.com/ProtonMail/gluon/async"
-	"github.com/ProtonMail/go-proton-api"
-	"github.com/bradenaw/juniper/xslices"
-	"github.com/pbnjay/memory"
-	"github.com/sirupsen/logrus"
+        "github.com/ProtonMail/export-tool/internal/apiclient"
+        "github.com/ProtonMail/export-tool/internal/session"
+        "github.com/ProtonMail/export-tool/internal/utils"
+        "github.com/ProtonMail/gluon/async"
+        "github.com/ProtonMail/go-proton-api"
+        "github.com/bradenaw/juniper/xslices"
+        "github.com/pbnjay/memory"
+        "github.com/sirupsen/logrus"
 )
 
 const NumParallelDownloads = 10
@@ -55,275 +55,278 @@ const MaxBuildMemMB = 512 * MB
 //      |- msg-id.meta.json
 
 type ExportTask struct {
-	ctx             context.Context
-	ctxCancel       func()
-	group           *async.Group
-	tmpDir          string
-	exportDir       string
-	session         *session.Session
-	log             *logrus.Entry
-	cancelledByUser bool
+        ctx             context.Context
+        ctxCancel       func()
+        group           *async.Group
+        tmpDir          string
+        exportDir       string
+        session         *session.Session
+        log             *logrus.Entry
+        cancelledByUser bool
+        filter          *ExportFilter
 }
 
 func NewExportTask(
-	ctx context.Context,
-	exportPath string,
-	session *session.Session,
+        ctx context.Context,
+        exportPath string,
+        session *session.Session,
+        filter *ExportFilter,
 ) *ExportTask {
-	exportPath = filepath.Join(exportPath, generateUniqueExportDir())
+        exportPath = filepath.Join(exportPath, generateUniqueExportDir())
 
-	// Tmp dir needs to be next to export path to as os.rename doesn't work if export path is on a different volume.
-	tmpDir := filepath.Join(exportPath, "temp")
+        // Tmp dir needs to be next to export path to as os.rename doesn't work if export path is on a different volume.
+        tmpDir := filepath.Join(exportPath, "temp")
 
-	ctx, cancel := context.WithCancel(ctx)
+        ctx, cancel := context.WithCancel(ctx)
 
-	return &ExportTask{
-		ctx:       ctx,
-		ctxCancel: cancel,
-		group:     async.NewGroup(ctx, session.GetPanicHandler()),
-		tmpDir:    tmpDir,
-		exportDir: exportPath,
-		session:   session,
-		log:       logrus.WithField("export", "mail").WithField("userID", session.GetUser().ID),
-	}
+        return &ExportTask{
+                ctx:       ctx,
+                ctxCancel: cancel,
+                group:     async.NewGroup(ctx, session.GetPanicHandler()),
+                tmpDir:    tmpDir,
+                exportDir: exportPath,
+                session:   session,
+                log:       logrus.WithField("export", "mail").WithField("userID", session.GetUser().ID),
+                filter:    filter,
+        }
 }
 
 type Reporter interface {
-	StageProgressReporter
+        StageProgressReporter
 }
 
 func (e *ExportTask) Close() {
-	e.group.CancelAndWait()
+        e.group.CancelAndWait()
 
-	if err := os.RemoveAll(e.tmpDir); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			e.log.WithError(err).Error("Failed to remove temp directory")
-		}
-	}
+        if err := os.RemoveAll(e.tmpDir); err != nil {
+                if !errors.Is(err, os.ErrNotExist) {
+                        e.log.WithError(err).Error("Failed to remove temp directory")
+                }
+        }
 }
 
 func (e *ExportTask) Cancel() {
-	e.cancelledByUser = true
-	e.ctxCancel()
+        e.cancelledByUser = true
+        e.ctxCancel()
 }
 
 func (e *ExportTask) GetRequiredDiskSpaceEstimate(_ context.Context) (uint64, error) {
-	return approximateDiskUsage(e.session.GetUser().ProductUsedSpace.Mail), nil
+        return approximateDiskUsage(e.session.GetUser().ProductUsedSpace.Mail), nil
 }
 
 func (e *ExportTask) Run(ctx context.Context, reporter Reporter) error {
-	defer e.log.Info("Finished")
-	e.log.WithFields(logrus.Fields{"tmp-dir": e.tmpDir, "export-dir": e.exportDir}).Info("Starting")
+        defer e.log.Info("Finished")
+        e.log.WithFields(logrus.Fields{"tmp-dir": e.tmpDir, "export-dir": e.exportDir}).Info("Starting")
 
-	e.log.Debug("Preparing export dir")
+        e.log.Debug("Preparing export dir")
 
-	if err := os.MkdirAll(e.exportDir, 0o700); err != nil {
-		return fmt.Errorf("failed to create export directory: %w", err)
-	}
+        if err := os.MkdirAll(e.exportDir, 0o700); err != nil {
+                return fmt.Errorf("failed to create export directory: %w", err)
+        }
 
-	if err := os.MkdirAll(e.tmpDir, 0o700); err != nil {
-		return fmt.Errorf("failed to create export tmp directory: %w", err)
-	}
+        if err := os.MkdirAll(e.tmpDir, 0o700); err != nil {
+                return fmt.Errorf("failed to create export tmp directory: %w", err)
+        }
 
-	reporter.OnProgress(0)
+        reporter.OnProgress(0)
 
-	client := e.session.GetClient()
+        client := e.session.GetClient()
 
-	user := e.session.GetUser()
+        user := e.session.GetUser()
 
-	e.log.Infof(
-		"Reported space usage %v MB, estimated disk uage %v MB",
-		toMB(user.ProductUsedSpace.Mail),
-		toMB(approximateDiskUsage(user.ProductUsedSpace.Mail)),
-	)
+        e.log.Infof(
+                "Reported space usage %v MB, estimated disk uage %v MB",
+                toMB(user.ProductUsedSpace.Mail),
+                toMB(approximateDiskUsage(user.ProductUsedSpace.Mail)),
+        )
 
-	salts := e.session.GetUserSalts()
+        salts := e.session.GetUserSalts()
 
-	saltedKeyPass, err := salts.SaltForKey(e.session.GetMailboxPassword(), user.Keys.Primary().ID)
-	if err != nil {
-		return fmt.Errorf("failed to salt key password: %w", err)
-	}
+        saltedKeyPass, err := salts.SaltForKey(e.session.GetMailboxPassword(), user.Keys.Primary().ID)
+        if err != nil {
+                return fmt.Errorf("failed to salt key password: %w", err)
+        }
 
-	e.log.Debug("Unlocking decryption key")
-	if userKR, err := user.Keys.Unlock(saltedKeyPass, nil); err != nil {
-		return fmt.Errorf("failed to unlock user keys: %w", err)
-	} else if userKR.CountDecryptionEntities() == 0 {
-		return fmt.Errorf("failed to unlock user keys")
-	}
+        e.log.Debug("Unlocking decryption key")
+        if userKR, err := user.Keys.Unlock(saltedKeyPass, nil); err != nil {
+                return fmt.Errorf("failed to unlock user keys: %w", err)
+        } else if userKR.CountDecryptionEntities() == 0 {
+                return fmt.Errorf("failed to unlock user keys")
+        }
 
-	e.log.Debug("Getting addresses")
-	// Get User addresses
-	addresses, err := client.GetAddresses(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get user addresses: %w", err)
-	}
+        e.log.Debug("Getting addresses")
+        // Get User addresses
+        addresses, err := client.GetAddresses(ctx)
+        if err != nil {
+                return fmt.Errorf("failed to get user addresses: %w", err)
+        }
 
-	e.log.Debug("Unlocking address keys")
-	keyRing, err := apiclient.NewUnlockedKeyRing(user, addresses, saltedKeyPass)
-	if err != nil {
-		return fmt.Errorf("failed to unlock user keyring:%w", err)
-	}
-	defer keyRing.Close()
+        e.log.Debug("Unlocking address keys")
+        keyRing, err := apiclient.NewUnlockedKeyRing(user, addresses, saltedKeyPass)
+        if err != nil {
+                return fmt.Errorf("failed to unlock user keyring:%w", err)
+        }
+        defer keyRing.Close()
 
-	// Create required folders
-	if err := e.WriteLabelMetadata(ctx, e.tmpDir, e.exportDir); err != nil {
-		return err
-	}
+        // Create required folders
+        if err := e.WriteLabelMetadata(ctx, e.tmpDir, e.exportDir); err != nil {
+                return err
+        }
 
-	msgCountPerLabel, err := client.GetGroupedMessageCount(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get message count: %w", err)
-	}
+        msgCountPerLabel, err := client.GetGroupedMessageCount(ctx)
+        if err != nil {
+                return fmt.Errorf("failed to get message count: %w", err)
+        }
 
-	var totalMessageCount uint64
-	var foundAllMailLabel bool
+        var totalMessageCount uint64
+        var foundAllMailLabel bool
 
-	for _, c := range msgCountPerLabel {
-		if c.LabelID == proton.AllMailLabel {
-			totalMessageCount = uint64(c.Total) //nolint:gosec // we won't overflow.
-			foundAllMailLabel = true
-			break
-		}
-	}
+        for _, c := range msgCountPerLabel {
+                if c.LabelID == proton.AllMailLabel {
+                        totalMessageCount = uint64(c.Total) //nolint:gosec // we won't overflow.
+                        foundAllMailLabel = true
+                        break
+                }
+        }
 
-	if !foundAllMailLabel {
-		return fmt.Errorf("failed to determine total message count")
-	}
+        if !foundAllMailLabel {
+                return fmt.Errorf("failed to determine total message count")
+        }
 
-	e.log.Infof("Found %v Messages for download", totalMessageCount)
+        e.log.Infof("Found %v Messages for download", totalMessageCount)
 
-	reporter.SetMessageTotal(totalMessageCount)
+        reporter.SetMessageTotal(totalMessageCount)
 
-	totalMemory := memory.TotalMemory()
+        totalMemory := memory.TotalMemory()
 
-	var (
-		buildMemMB    uint64
-		downloadMemMb uint64
-	)
+        var (
+                buildMemMB    uint64
+                downloadMemMb uint64
+        )
 
-	if totalMemory >= 4096*MB {
-		buildMemMB = MaxBuildMemMB
-		downloadMemMb = MaxDownloadMemMB
-	} else {
-		buildMemMB = MinBuildMemMB
-		downloadMemMb = MinDownloadMemMB
-	}
+        if totalMemory >= 4096*MB {
+                buildMemMB = MaxBuildMemMB
+                downloadMemMb = MaxDownloadMemMB
+        } else {
+                buildMemMB = MinBuildMemMB
+                downloadMemMb = MinDownloadMemMB
+        }
 
-	// Build stages
-	metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads)
-	downloadStage := NewDownloadStage(client, NumParallelDownloads, e.log, downloadMemMb, e.session.GetPanicHandler())
-	buildStage := NewBuildStage(NumParallelBuilders, e.log, buildMemMB, e.session.GetPanicHandler(), e.session.GetReporter(), user.ID)
-	writeStage := NewWriteStage(e.tmpDir, e.exportDir, NumParallelWriters, e.log, reporter, e.session.GetPanicHandler())
+        // Build stages
+        metaStage := NewMetadataStage(client, e.log, MetadataPageSize, NumParallelDownloads, e.filter)
+        downloadStage := NewDownloadStage(client, NumParallelDownloads, e.log, downloadMemMb, e.session.GetPanicHandler())
+        buildStage := NewBuildStage(NumParallelBuilders, e.log, buildMemMB, e.session.GetPanicHandler(), e.session.GetReporter(), user.ID)
+        writeStage := NewWriteStage(e.tmpDir, e.exportDir, NumParallelWriters, e.log, reporter, e.session.GetPanicHandler())
 
-	e.log.Debug("Starting message download")
-	errReporter := &exportErrReporter{
-		export: e,
-		lock:   sync.Mutex{},
-		errors: nil,
-	}
+        e.log.Debug("Starting message download")
+        errReporter := &exportErrReporter{
+                export: e,
+                lock:   sync.Mutex{},
+                errors: nil,
+        }
 
-	// start pipeline.
-	e.group.Once(func(ctx context.Context) {
-		// To enable resume features use re-enable this line and delete the one below.
-		// metaStage.Run(ctx, errReporter, NewFileMetadataFileChecker(e.exportDir), reporter)
-		metaStage.Run(ctx, errReporter, &alwaysMissingMetadataFileChecker{}, reporter)
-	})
-	e.group.Once(func(ctx context.Context) {
-		downloadStage.Run(ctx, metaStage.outputCh, errReporter)
-	})
-	e.group.Once(func(ctx context.Context) {
-		buildStage.Run(ctx, downloadStage.outputCh, keyRing, errReporter)
-	})
-	e.group.Once(func(ctx context.Context) {
-		writeStage.Run(ctx, buildStage.outputCh, errReporter)
-	})
+        // start pipeline.
+        e.group.Once(func(ctx context.Context) {
+                // To enable resume features use re-enable this line and delete the one below.
+                // metaStage.Run(ctx, errReporter, NewFileMetadataFileChecker(e.exportDir), reporter)
+                metaStage.Run(ctx, errReporter, &alwaysMissingMetadataFileChecker{}, reporter)
+        })
+        e.group.Once(func(ctx context.Context) {
+                downloadStage.Run(ctx, metaStage.outputCh, errReporter)
+        })
+        e.group.Once(func(ctx context.Context) {
+                buildStage.Run(ctx, downloadStage.outputCh, keyRing, errReporter)
+        })
+        e.group.Once(func(ctx context.Context) {
+                writeStage.Run(ctx, buildStage.outputCh, errReporter)
+        })
 
-	// wait for downloads to finish.
-	e.group.WaitToFinish()
+        // wait for downloads to finish.
+        e.group.WaitToFinish()
 
-	e.log.Debug("Message download finished")
+        e.log.Debug("Message download finished")
 
-	// collect errors.
-	exportError := errReporter.getErrors()
-	if len(exportError) == 0 {
-		return e.ctx.Err()
-	}
+        // collect errors.
+        exportError := errReporter.getErrors()
+        if len(exportError) == 0 {
+                return e.ctx.Err()
+        }
 
-	e.log.Error("Export task ran into the following errors")
-	for i, err := range exportError {
-		e.log.WithError(err).Errorf("Error %v", i)
-	}
+        e.log.Error("Export task ran into the following errors")
+        for i, err := range exportError {
+                e.log.WithError(err).Errorf("Error %v", i)
+        }
 
-	return exportError[0]
+        return exportError[0]
 }
 
 const LabelMetadataVersion = 1
 
 func (e *ExportTask) WriteLabelMetadata(ctx context.Context, tmpDir, exportPath string) error {
-	e.log.Debug("Writing root label metadata")
-	apiLabels, err := e.session.GetClient().GetLabels(ctx, proton.LabelTypeSystem, proton.LabelTypeFolder, proton.LabelTypeLabel)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve labels: %w", err)
-	}
+        e.log.Debug("Writing root label metadata")
+        apiLabels, err := e.session.GetClient().GetLabels(ctx, proton.LabelTypeSystem, proton.LabelTypeFolder, proton.LabelTypeLabel)
+        if err != nil {
+                return fmt.Errorf("failed to retrieve labels: %w", err)
+        }
 
-	apiLabels = xslices.Filter(apiLabels, nonSystemLabel)
+        apiLabels = xslices.Filter(apiLabels, nonSystemLabel)
 
-	labelData, err := utils.GenerateVersionedJSON(LabelMetadataVersion, apiLabels)
-	if err != nil {
-		return fmt.Errorf("failed to json encode labels: %w", err)
-	}
+        labelData, err := utils.GenerateVersionedJSON(LabelMetadataVersion, apiLabels)
+        if err != nil {
+                return fmt.Errorf("failed to json encode labels: %w", err)
+        }
 
-	labelFile := filepath.Join(exportPath, getLabelFileName())
+        labelFile := filepath.Join(exportPath, getLabelFileName())
 
-	return utils.WriteFileSafe(tmpDir, labelFile, labelData, &utils.Sha256IntegrityChecker{})
+        return utils.WriteFileSafe(tmpDir, labelFile, labelData, &utils.Sha256IntegrityChecker{})
 }
 
 func (e *ExportTask) GetExportPath() string {
-	return e.exportDir
+        return e.exportDir
 }
 
 func (e *ExportTask) GetOperationCancelledByUser() bool {
-	return e.cancelledByUser
+        return e.cancelledByUser
 }
 
 func getLabelFileName() string {
-	return "labels.json"
+        return "labels.json"
 }
 
 type exportErrReporter struct {
-	export *ExportTask
-	lock   sync.Mutex
-	errors []error
+        export *ExportTask
+        lock   sync.Mutex
+        errors []error
 }
 
 func (e *exportErrReporter) ReportStageError(err error) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
+        e.lock.Lock()
+        defer e.lock.Unlock()
 
-	if len(e.errors) == 0 {
-		e.export.log.Debug("Cancelling context due to error")
-		e.export.group.Cancel()
-	}
-	e.errors = append(e.errors, err)
+        if len(e.errors) == 0 {
+                e.export.log.Debug("Cancelling context due to error")
+                e.export.group.Cancel()
+        }
+        e.errors = append(e.errors, err)
 }
 
 func (e *exportErrReporter) getErrors() []error {
-	e.lock.Lock()
-	defer e.lock.Unlock()
+        e.lock.Lock()
+        defer e.lock.Unlock()
 
-	return e.errors
+        return e.errors
 }
 
 func approximateDiskUsage(v uint64) uint64 {
-	// add another 30% of to current usage estimate due to variance in the decrypted message sizes and metadata.
-	return uint64(math.Ceil(float64(v) * 1.3))
+        // add another 30% of to current usage estimate due to variance in the decrypted message sizes and metadata.
+        return uint64(math.Ceil(float64(v) * 1.3))
 }
 
 func toMB(v uint64) uint64 {
-	return v / 1024 / 1024
+        return v / 1024 / 1024
 }
 
 func generateUniqueExportDir() string {
-	const format = "20060102_150405"
-	return "mail_" + time.Now().Format(format)
+        const format = "20060102_150405"
+        return "mail_" + time.Now().Format(format)
 }
