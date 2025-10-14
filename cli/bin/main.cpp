@@ -656,26 +656,44 @@ int main(int argc, const char** argv) {
 
         cxxopts::Options options("proton-mail-export-cli");
 
-        options.add_options()("o,operation", "operation to perform, backup or restore (can also be set with env var ET_OPERATION)",
-                              cxxopts::value<std::string>())("d,dir", "Backup/restore directory (can also be set with env var ET_DIR)",
-                                                             cxxopts::value<std::string>())(
-            "p,password", "User's password (can also be set with env var ET_USER_PASSWORD)", cxxopts::value<std::string>())(
-            "m,mbox-password", "User's mailbox password when using 2 Password Mode (can also be set with env var ET_USER_MAILBOX_PASSWORD)",
-            cxxopts::value<std::string>())("t,totp", "User's TOTP 2FA code (can also be set with env var ET_TOTP_CODE)",
-                                           cxxopts::value<std::string>())(
-            "u,user", "User's account/email (can also be set with env var ET_USER_EMAIL", cxxopts::value<std::string>())(
-            "k,telemetry", "Disable anonymous telemetry statistics (can also be set with env var ET_TELEMETRY_OFF)", cxxopts::value<bool>())(
-            // Enhanced options for new features
-            "encrypt", "Enable backup encryption", cxxopts::value<bool>()->default_value("false"))(
-            "encryption-password", "Password for backup encryption", cxxopts::value<std::string>())(
-            "incremental", "Enable incremental backup", cxxopts::value<bool>()->default_value("false"))(
-            "date-start", "Start date for filtering (YYYY-MM-DD)", cxxopts::value<std::string>())(
-            "date-end", "End date for filtering (YYYY-MM-DD)", cxxopts::value<std::string>())(
-            "sender", "Filter by sender email/pattern", cxxopts::value<std::vector<std::string>>())(
-            "has-attachments", "Filter emails with attachments", cxxopts::value<bool>())(
-            "format", "Export format (eml, pdf)", cxxopts::value<std::string>()->default_value("eml"))(
-            "progress-style", "Progress display style (simple, enhanced)", cxxopts::value<std::string>()->default_value("simple"))(
-            "h,help", "Show help");
+        // Core options
+        options.add_options("Core")
+            ("o,operation", "Operation to perform: backup or restore (env: ET_OPERATION)", cxxopts::value<std::string>())
+            ("d,dir", "Backup/restore directory (env: ET_DIR)", cxxopts::value<std::string>())
+            ("u,user", "User's account/email (env: ET_USER_EMAIL)", cxxopts::value<std::string>())
+            ("p,password", "User's password (env: ET_USER_PASSWORD)", cxxopts::value<std::string>())
+            ("m,mbox-password", "User's mailbox password for 2-Password Mode (env: ET_USER_MAILBOX_PASSWORD)", cxxopts::value<std::string>())
+            ("t,totp", "User's TOTP 2FA code (env: ET_TOTP_CODE)", cxxopts::value<std::string>())
+            ("k,telemetry", "Disable anonymous telemetry statistics (env: ET_TELEMETRY_OFF)", cxxopts::value<bool>())
+            ("h,help", "Show this help message");
+
+        // Export Filter options
+        options.add_options("Export Filters")
+            ("since", "Export emails since date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)", cxxopts::value<std::string>())
+            ("until", "Export emails until date (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS)", cxxopts::value<std::string>())
+            ("address", "Filter by sender/recipient email address (supports wildcards: *@domain.com)", cxxopts::value<std::vector<std::string>>())
+            ("domain", "Filter by email domain (e.g., company.com)", cxxopts::value<std::vector<std::string>>())
+            ("folder", "Filter by folder/label name (case-sensitive)", cxxopts::value<std::vector<std::string>>())
+            ("label", "Filter by label name (case-sensitive)", cxxopts::value<std::vector<std::string>>())
+            ("subject", "Filter by subject line (supports wildcards)", cxxopts::value<std::vector<std::string>>())
+            ("has-attachments", "Include only emails with attachments", cxxopts::value<bool>())
+            ("no-attachments", "Include only emails without attachments", cxxopts::value<bool>())
+            ("min-size", "Minimum email size (e.g., 1MB, 500KB, 1024)", cxxopts::value<std::string>())
+            ("max-size", "Maximum email size (e.g., 10MB, 5000KB, 1048576)", cxxopts::value<std::string>());
+
+        // Export Options
+        options.add_options("Export Options")
+            ("format", "Export format: eml (default), pdf, mbox", cxxopts::value<std::string>()->default_value("eml"))
+            ("encrypt", "Enable backup encryption", cxxopts::value<bool>()->default_value("false"))
+            ("encryption-password", "Password for backup encryption", cxxopts::value<std::string>())
+            ("incremental", "Enable incremental backup (only new/changed emails)", cxxopts::value<bool>()->default_value("false"))
+            ("progress-style", "Progress display style: simple (default), enhanced", cxxopts::value<std::string>()->default_value("simple"));
+
+        // Legacy options (hidden for backward compatibility)
+        options.add_options("Legacy")
+            ("date-start", "Legacy: use --since instead", cxxopts::value<std::string>())
+            ("date-end", "Legacy: use --until instead", cxxopts::value<std::string>())
+            ("sender", "Legacy: use --address instead", cxxopts::value<std::vector<std::string>>());
 
         auto argParseResult = options.parse(argc, argv);
 
