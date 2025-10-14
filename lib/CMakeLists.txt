@@ -14,12 +14,14 @@ target_sources(etcpp PRIVATE
     include/etrestore.hpp
     include/etlog.hpp
     include/etutil.hpp
+    include/etfilters.hpp
     include/et.hpp
     lib/etsession.cpp
     lib/etbackup.cpp
     lib/etrestore.cpp
     lib/etlog.cpp
     lib/etutil.cpp
+    lib/etfilters.cpp
     lib/et.cpp
 )
 

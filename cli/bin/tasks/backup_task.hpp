@@ -18,7 +18,9 @@
 #pragma once
 
 #include <etbackup.hpp>
+#include <etfilters.hpp>
 #include <filesystem>
+#include <optional>
 
 #include "tasks/task.hpp"
 #include "tui_util.hpp"
@@ -27,9 +29,11 @@ class BackupTask final : public TaskWithProgress<void>, etcpp::BackupCallback {
 private:
     etcpp::Backup mBackup;
     CLIProgressBar mProgressBar;
+    std::optional<etcpp::FilterCriteria> mFilters;
 
 public:
     BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath);
+    BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const etcpp::FilterCriteria& filters);
     ~BackupTask() override = default;
     BackupTask(const BackupTask&) = delete;
     BackupTask(BackupTask&&) = delete;
