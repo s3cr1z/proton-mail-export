@@ -1,7 +1,7 @@
 include(cmake/mingw.cmake)
 include(cmake/vcpkg_setup.cmake)
 cmake_minimum_required(VERSION 3.23)
-project(ExportTool CXX C)
+project(ExportToolWithAmazonQ CXX C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 if (UNIX AND NOT APPLE)
