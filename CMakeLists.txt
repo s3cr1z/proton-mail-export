@@ -16,6 +16,10 @@ include(clang_tidy)
 include(clang_format)
 include(shared_lib_copy)
 
+# Find required packages for enhanced features
+find_package(OpenSSL REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+
 add_subdirectory(go-lib)
 add_subdirectory(lib)
 add_subdirectory(cli)

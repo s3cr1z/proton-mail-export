@@ -672,7 +672,9 @@ int main(int argc, const char** argv) {
             "date-start", "Start date for filtering (YYYY-MM-DD)", cxxopts::value<std::string>())(
             "date-end", "End date for filtering (YYYY-MM-DD)", cxxopts::value<std::string>())(
             "sender", "Filter by sender email/pattern", cxxopts::value<std::vector<std::string>>())(
-            "has-attachments", "Filter emails with attachments", cxxopts::value<bool>())(
+            "has-attachments", "Filter emails with attachments", cxxopts::value<bool>()->default_value("false"))(
+            "min-size", "Minimum email size in bytes", cxxopts::value<uint64_t>()->default_value("0"))(
+            "folder", "Filter by folder name", cxxopts::value<std::vector<std::string>>())(
             "format", "Export format (eml, pdf)", cxxopts::value<std::string>()->default_value("eml"))(
             "progress-style", "Progress display style (simple, enhanced)", cxxopts::value<std::string>()->default_value("simple"))(
             "h,help", "Show help");

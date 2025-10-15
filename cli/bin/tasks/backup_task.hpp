@@ -18,18 +18,35 @@
 #pragma once
 
 #include <etbackup.hpp>
+#include <etencryption.hpp>
+#include <etincremental.hpp>
+#include <etfilters.hpp>
 #include <filesystem>
+#include <memory>
 
 #include "tasks/task.hpp"
 #include "tui_util.hpp"
+
+struct BackupOptions {
+    bool encryptionEnabled = false;
+    std::string encryptionPassword;
+    bool incrementalEnabled = false;
+    etcpp::FilterCriteria filterCriteria;
+    std::string exportFormat = "eml";
+    std::string progressStyle = "simple";
+};
 
 class BackupTask final : public TaskWithProgress<void>, etcpp::BackupCallback {
 private:
     etcpp::Backup mBackup;
     CLIProgressBar mProgressBar;
+    BackupOptions mOptions;
+    std::unique_ptr<etcpp::FileEncryptor> mEncryptor;
+    std::unique_ptr<etcpp::IncrementalState> mIncrementalState;
 
 public:
     BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath);
+    BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const BackupOptions& options);
     ~BackupTask() override = default;
     BackupTask(const BackupTask&) = delete;
     BackupTask(BackupTask&&) = delete;
@@ -48,4 +65,6 @@ public:
 
 private:
     void onProgress(float progress) override;
+    void initializeEncryption();
+    void initializeIncremental();
 };

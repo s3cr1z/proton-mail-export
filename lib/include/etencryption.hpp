@@ -1,26 +1,39 @@
 // Copyright (c) 2023 Proton AG
 //
 // This file is part of Proton Export Tool.
+//
+// Proton Mail Bridge is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Proton Mail Bridge is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Proton Export Tool.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
 
 #include <string>
-#include <filesystem>
 #include <vector>
 #include <memory>
+#include <filesystem>
 
 namespace etcpp {
 
 class EncryptionKey {
 public:
-    static constexpr size_t KEY_SIZE = 32; // 256 bits
-    static constexpr size_t IV_SIZE = 12;  // 96 bits for GCM
-    
-    EncryptionKey(const std::string& password, const std::vector<uint8_t>& salt);
+    static constexpr size_t KEY_SIZE = 32; // AES-256
+    static constexpr size_t SALT_SIZE = 16;
+
+    EncryptionKey(const std::string& password, const std::vector<uint8_t>& salt = {});
     
     const std::vector<uint8_t>& getKey() const { return mKey; }
     const std::vector<uint8_t>& getSalt() const { return mSalt; }
-    
+
 private:
     std::vector<uint8_t> mKey;
     std::vector<uint8_t> mSalt;
@@ -30,36 +43,18 @@ private:
 
 class FileEncryptor {
 public:
-    FileEncryptor(const EncryptionKey& key);
-    
-    void encryptFile(const std::filesystem::path& inputPath, 
-                    const std::filesystem::path& outputPath);
-    void decryptFile(const std::filesystem::path& inputPath, 
-                    const std::filesystem::path& outputPath);
-    
-private:
-    const EncryptionKey& mKey;
-    
-    std::vector<uint8_t> generateIV();
-    void encryptData(const std::vector<uint8_t>& plaintext,
-                    const std::vector<uint8_t>& iv,
-                    std::vector<uint8_t>& ciphertext,
-                    std::vector<uint8_t>& tag);
-    void decryptData(const std::vector<uint8_t>& ciphertext,
-                    const std::vector<uint8_t>& iv,
-                    const std::vector<uint8_t>& tag,
-                    std::vector<uint8_t>& plaintext);
-};
+    explicit FileEncryptor(const EncryptionKey& key);
+    ~FileEncryptor();
 
-struct BackupManifest {
-    bool encrypted = false;
-    std::string encryptionMethod;
-    std::vector<uint8_t> salt;
-    uint64_t timestamp;
-    std::string version;
+    bool encryptFile(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath);
+    bool decryptFile(const std::filesystem::path& inputPath, const std::filesystem::path& outputPath);
     
-    void writeToFile(const std::filesystem::path& path) const;
-    static BackupManifest readFromFile(const std::filesystem::path& path);
+    std::vector<uint8_t> encrypt(const std::vector<uint8_t>& data);
+    std::vector<uint8_t> decrypt(const std::vector<uint8_t>& data);
+
+private:
+    class Impl;
+    std::unique_ptr<Impl> mImpl;
 };
 
 } // namespace etcpp
