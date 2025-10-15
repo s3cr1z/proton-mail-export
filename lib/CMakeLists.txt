@@ -3,6 +3,8 @@
 #
 
 find_package(fmt CONFIG REQUIRED)
+find_package(OpenSSL REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 find_package(Threads REQUIRED)
 
@@ -15,12 +17,18 @@ target_sources(etcpp PRIVATE
     include/etlog.hpp
     include/etutil.hpp
     include/et.hpp
+    include/etencryption.hpp
+    include/etfilters.hpp
+    include/etincremental.hpp
     lib/etsession.cpp
     lib/etbackup.cpp
     lib/etrestore.cpp
     lib/etlog.cpp
     lib/etutil.cpp
     lib/et.cpp
+    lib/etencryption.cpp
+    lib/etfilters.cpp
+    lib/etincremental.cpp
 )
 
 if (UNIX)
@@ -45,7 +53,7 @@ configure_file("${config_file_in}" "${config_file}" @ONLY)
 
 target_link_libraries(etcpp
         PRIVATE etcore
-        PUBLIC fmt::fmt Threads::Threads
+        PUBLIC fmt::fmt Threads::Threads OpenSSL::SSL OpenSSL::Crypto nlohmann_json::nlohmann_json
 )
 
 if (WIN32)
