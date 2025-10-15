@@ -40,3 +40,5 @@ the CGO module.
 - [go-lib](go-lib): CGO Shared library implementation
 - [lib](lib): C++ shared library over the exported C interface from [go-lib](go-lib)
 - [cli](cli): CLI application
+
+Enhanced CLI functionality with Amazon Q Integration features
