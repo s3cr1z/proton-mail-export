@@ -1,7 +1,11 @@
 {
+    "name": "proton-mail-export",
+    "version": "1.0.5",
     "dependencies": [
         "catch2",
         "fmt",
-        "cxxopts"
+        "cxxopts",
+        "openssl",
+        "nlohmann-json"
     ]
 }
