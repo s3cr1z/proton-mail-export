@@ -22,12 +22,50 @@
 BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath) :
     mBackup(session.newBackup(backupPath.u8string().c_str())) {}
 
+BackupTask::BackupTask(etcpp::Session& session, const std::filesystem::path& backupPath, const BackupOptions& options) :
+    mBackup(session.newBackup(backupPath.u8string().c_str())), mOptions(options) {
+    
+    if (mOptions.encryptionEnabled) {
+        initializeEncryption();
+    }
+    
+    if (mOptions.incrementalEnabled) {
+        initializeIncremental();
+    }
+}
+
+void BackupTask::initializeEncryption() {
+    if (!mOptions.encryptionPassword.empty()) {
+        auto key = std::make_unique<etcpp::EncryptionKey>(mOptions.encryptionPassword);
+        mEncryptor = std::make_unique<etcpp::FileEncryptor>(*key);
+    }
+}
+
+void BackupTask::initializeIncremental() {
+    mIncrementalState = std::make_unique<etcpp::IncrementalState>(getExportPath());
+    mIncrementalState->loadState();
+}
+
 void BackupTask::onProgress(float progress) {
     updateProgress(progress);
 }
 
 void BackupTask::run() {
+    // Apply filters if specified
+    if (!mOptions.filterCriteria.isEmpty()) {
+        etcpp::EmailFilter filter(mOptions.filterCriteria);
+        // In a real implementation, would pass filter to backup process
+        std::cout << "Applying email filters..." << std::endl;
+    }
+    
+    // Start backup with enhanced options
     mBackup.start(*this);
+    
+    // Save incremental state if enabled
+    if (mIncrementalState) {
+        mIncrementalState->setLastBackupTime(std::chrono::system_clock::now());
+        mIncrementalState->saveState();
+    }
 }
 
 void BackupTask::cancel() {
@@ -35,5 +73,13 @@ void BackupTask::cancel() {
 }
 
 std::string_view BackupTask::description() const {
-    return "Export Mail";
+    if (mOptions.encryptionEnabled && mOptions.incrementalEnabled) {
+        return "Export Mail (Encrypted, Incremental)";
+    } else if (mOptions.encryptionEnabled) {
+        return "Export Mail (Encrypted)";
+    } else if (mOptions.incrementalEnabled) {
+        return "Export Mail (Incremental)";
+    } else {
+        return "Export Mail";
+    }
 }

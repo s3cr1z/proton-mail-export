@@ -1,60 +1,50 @@
 // Copyright (c) 2023 Proton AG
 //
 // This file is part of Proton Export Tool.
+//
+// Proton Mail Bridge is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Proton Mail Bridge is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Proton Export Tool.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
 
 #include <string>
-#include <filesystem>
 #include <unordered_set>
+#include <filesystem>
 #include <chrono>
-#include <optional>
 
 namespace etcpp {
 
-struct MessageMetadata {
-    std::string messageId;
-    uint64_t timestamp;
-    std::string checksum;
-    uint64_t size;
-    
-    bool operator==(const MessageMetadata& other) const {
-        return messageId == other.messageId && checksum == other.checksum;
-    }
-};
-
 class IncrementalState {
 public:
-    IncrementalState(const std::filesystem::path& backupPath);
+    explicit IncrementalState(const std::filesystem::path& backupPath);
     
-    void loadState();
-    void saveState();
+    bool loadState();
+    bool saveState();
     
-    bool shouldBackupMessage(const MessageMetadata& metadata) const;
-    void addMessage(const MessageMetadata& metadata);
+    bool isEmailProcessed(const std::string& emailId) const;
+    void markEmailProcessed(const std::string& emailId);
     
-    std::optional<std::chrono::system_clock::time_point> getLastBackupTime() const;
     void setLastBackupTime(std::chrono::system_clock::time_point time);
+    std::chrono::system_clock::time_point getLastBackupTime() const;
     
-    size_t getMessageCount() const { return mMessages.size(); }
+    size_t getProcessedEmailCount() const { return mProcessedEmails.size(); }
     
 private:
     std::filesystem::path mStatePath;
-    std::unordered_set<std::string> mMessages; // messageId -> checksum
-    std::optional<std::chrono::system_clock::time_point> mLastBackupTime;
+    std::unordered_set<std::string> mProcessedEmails;
+    std::chrono::system_clock::time_point mLastBackupTime;
     
-    std::string generateStateFilePath() const;
-};
-
-class IncrementalBackupFilter {
-public:
-    IncrementalBackupFilter(IncrementalState& state);
-    
-    bool shouldIncludeMessage(const MessageMetadata& metadata) const;
-    void markMessageProcessed(const MessageMetadata& metadata);
-    
-private:
-    IncrementalState& mState;
+    std::filesystem::path getStateFilePath() const;
 };
 
 } // namespace etcpp
